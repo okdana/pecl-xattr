@@ -71,7 +71,7 @@ zend_module_entry xattr_module_entry = {
 	NULL,
 	PHP_MINFO(xattr),
 #if ZEND_MODULE_API_NO >= 20010901
-	"1.0",
+	"1.1",
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -100,7 +100,7 @@ PHP_MINFO_FUNCTION(xattr)
 {
 	php_info_print_table_start();
 	php_info_print_table_row(2, "xattr support", "enabled");
-	php_info_print_table_row(2, "PECL module version", "1.0");
+	php_info_print_table_row(2, "PECL module version", "1.1");
 	php_info_print_table_end();
 }
 /* }}} */
@@ -118,6 +118,11 @@ PHP_FUNCTION(xattr_set)
 		return;
 	}
 
+	/* Enforce open_basedir and safe_mode */
+	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+		RETURN_FALSE;
+	}
+	
 	/* Ensure that only allowed bits are set */
 	flags &= ATTR_ROOT | ATTR_DONTFOLLOW | ATTR_CREATE | ATTR_REPLACE; 
 	
@@ -162,6 +167,11 @@ PHP_FUNCTION(xattr_get)
 		return;
 	}
 
+	/* Enforce open_basedir and safe_mode */
+	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+		RETURN_FALSE;
+	}
+	
 	/* Ensure that only allowed bits are set */
 	flags &= ATTR_ROOT | ATTR_DONTFOLLOW; 
 	
@@ -218,19 +228,29 @@ PHP_FUNCTION(xattr_get)
 }
 /* }}} */
 
-/* {{{ proto bool xattr_supported(string path)
+/* {{{ proto bool xattr_supported(string path [, int flags])
    Checks if filesystem supports extended attributes */
 PHP_FUNCTION(xattr_supported)
 {
 	char *buffer, *path = NULL;
-	int error, tmp;
+	int error, tmp, flags = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &tmp) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &path, &tmp, &flags) == FAILURE) {
 		return;
 	}
 	
+	/* Enforce open_basedir and safe_mode */
+	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+		RETURN_NULL();
+	}
+	
 	/* Is "test" a good name? */
-	error = getxattr(path, "user.test", buffer, 0);
+	if (flags & ATTR_DONTFOLLOW) {
+		error = lgetxattr(path, "user.test", buffer, 0);
+	} else {
+		error = getxattr(path, "user.test", buffer, 0);
+	}
+
 	if (error >= 0)
 		RETURN_TRUE;
 	
@@ -262,6 +282,11 @@ PHP_FUNCTION(xattr_remove)
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &path, &tmp, &attr_name, &tmp, &flags) == FAILURE) {
 		return;
+	}
+	
+	/* Enforce open_basedir and safe_mode */
+	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+		RETURN_FALSE;
 	}
 	
 	/* Ensure that only allowed bits are set */
@@ -306,6 +331,11 @@ PHP_FUNCTION(xattr_list)
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &path, &tmp, &flags) == FAILURE) {
 		return;
+	}
+	
+	/* Enforce open_basedir and safe_mode */
+	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+		RETURN_FALSE;
 	}
 	
 	buffer = emalloc(buffer_size);
