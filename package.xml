@@ -17,11 +17,11 @@
  </maintainers>
 
  <release>
-  <version>1.0</version>
-  <date>2004-08-19</date>
+  <version>1.1</version>
+  <date>2004-09-12</date>
   <state>stable</state>
   <notes>
-   New function added: xattr_supported.
+   Enforce open_basedir and safe_mode checks.
   </notes>
   <configureoptions>
     <configureoption name="with-xattr" default="autodetect" prompt="libattr library installation dir?"/>
