@@ -31,7 +31,6 @@
         <file role="doc">CREDITS</file>
 
         <file role="src">config.m4</file>
-        <file role="src">config.w32</file>
         <file role="src">php_xattr.h</file>
         <file role="src">xattr.c</file>
 
