@@ -24,7 +24,7 @@
 
 #define XATTR_BUFFER_SIZE	1024	/* Initial size for internal buffers, feel free to change it */
 
-/* These prefixes has been taken from attr(5) man page */
+/* These prefixes have been taken from attr(5) man page */
 #define XATTR_USER_PREFIX	"user."
 #define XATTR_ROOT_PREFIX	"trusted."
 
@@ -38,7 +38,7 @@
 
 /*
  * One beautiful day libattr will implement listing extended attributes,
- * but until then we must to it on our own, so these headers are required.
+ * but until then we must do it on our own, so these headers are required.
  */
 #include <sys/types.h>
 #include <attr/xattr.h>
@@ -119,7 +119,7 @@ PHP_FUNCTION(xattr_set)
 	/* Ensure that only allowed bits are set */
 	flags &= ATTR_ROOT | ATTR_DONTFOLLOW | ATTR_CREATE | ATTR_REPLACE; 
 	
-	/* Try to set an attribute and give some warning if it fails... */
+	/* Attempt to set an attribute, warn if failed. */ 
 	error = attr_set(path, attr_name, attr_value, value_len, flags);
 	if (error == -1) {
 		switch (errno) {
@@ -147,7 +147,7 @@ PHP_FUNCTION(xattr_set)
 /* }}} */
 
 /* {{{ proto string xattr_get(string path, string name [, int flags])
-   Return a value of an extended attribute */
+   Returns a value of an extended attribute */
 PHP_FUNCTION(xattr_get)
 {
 	char *attr_name = NULL;
@@ -170,7 +170,7 @@ PHP_FUNCTION(xattr_get)
 	
 	/* 
 	 * If buffer is too small then attr_get sets errno to E2BIG and tells us
-	 * how many bytes is required by setting buffer_size variable.
+	 * how many bytes are required by setting buffer_size variable.
 	 */
 	error = attr_get(path, attr_name, attr_value, &buffer_size, flags);
 
@@ -231,7 +231,7 @@ PHP_FUNCTION(xattr_remove)
 	/* Ensure that only allowed bits are set */
 	flags &= ATTR_ROOT | ATTR_DONTFOLLOW; 
 	
-	/* Try to remove an attribute and give some warning if it fails... */
+	/* Attempt to remove an attribute, warn if failed. */ 
 	error = attr_remove(path, attr_name, flags);
 	if (error == -1) {
 		switch (errno) {
@@ -276,11 +276,11 @@ PHP_FUNCTION(xattr_list)
 	if (!buffer)
 		RETURN_FALSE;
 	
-	/* Loop is required to take a list reliably */
+	/* Loop is required to get a list reliably */
 	do {
 		/* 
 		 * Call to this function with zero size buffer will return us
-		 * required size of our buffer (or an error).
+		 * required size of our buffer in return (or an error).
 		 */
 		if (flags & ATTR_DONTFOLLOW) {
 			error = llistxattr(path, buffer, 0);
@@ -307,7 +307,7 @@ PHP_FUNCTION(xattr_list)
 			RETURN_FALSE;
 		}
 
-		/* Resize buffer to required size */
+		/* Resize buffer to the required size */
 		buffer_size = error;
 		buffer = erealloc(buffer, buffer_size);
 		if (!buffer)
@@ -320,13 +320,13 @@ PHP_FUNCTION(xattr_list)
 		}
 	
 		/*
-		 * Preceding functions may fail if extended attributes 
-		 * have been changed after we had read required buffer size.
-		 * That's why we will retry if errno is ERANGE.
-		 */
+		 * Preceding functions may fail if extended attributes
+		 * have been changed after we read required buffer size.
+		 * That's why we will retry if errno is ERANGE.
+		 */
 	} while (error == -1 && errno == ERANGE);
 	
-	/* If there is still an error and it's not ERANGE than return false */
+	/* If there is still an error and it's not ERANGE then return false */
 	if (error == -1) {
 		efree(buffer);
 		RETURN_FALSE;
@@ -339,8 +339,7 @@ PHP_FUNCTION(xattr_list)
 	p = buffer;
 	
 	/*
-	 * Root namespace has prefix "trusted." and users namespace
-	 * has prefix "user.". 
+	 * Root namespace has the prefix "trusted." and users namespace "user.". 
 	 */
 	if (flags & ATTR_ROOT) {
 		prefix = XATTR_ROOT_PREFIX;
@@ -351,7 +350,7 @@ PHP_FUNCTION(xattr_list)
 	prefix_len = strlen(prefix);
 	
 	/* 
-	 * We go through whole list and add entries beginning with selected
+	 * We go through the whole list and add entries beginning with selected
 	 * prefix to the return_value array.
 	 */
 	while (i != buffer_size) {
