@@ -204,8 +204,8 @@ PHP_FUNCTION(xattr_get)
 }
 /* }}} */
 
-/* {{{ proto string xattr_get(string path, string name [, int flags])
-   Return a value of an extended attribute */
+/* {{{ proto string xattr_remove(string path, string name [, int flags])
+   Remove an extended attribute from a file */
 PHP_FUNCTION(xattr_remove)
 {
 	char *attr_name = NULL;
