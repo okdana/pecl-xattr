@@ -17,11 +17,11 @@
  </maintainers>
 
  <release>
-  <version>0.9</version>
-  <date>2004-08-14</date>
-  <state>beta</state>
+  <version>1.0</version>
+  <date>2004-08-19</date>
+  <state>stable</state>
   <notes>
-   First public release. Requires libattr from Linux XFS project.
+   New function added: xattr_supported.
   </notes>
   <configureoptions>
     <configureoption name="with-xattr" default="autodetect" prompt="libattr library installation dir?"/>
