@@ -100,7 +100,7 @@ PHP_MINFO_FUNCTION(xattr)
 {
 	php_info_print_table_start();
 	php_info_print_table_row(2, "xattr support", "enabled");
-	php_info_print_table_row(2, "PECL module version", "0.9");
+	php_info_print_table_row(2, "PECL module version", "1.0");
 	php_info_print_table_end();
 }
 /* }}} */
