@@ -1,8 +1,0 @@
-// $Id$
-// vim:ft=javascript
-
-ARG_ENABLE("xattr", "enable xattr support", "no");
-
-if (PHP_XATTR != "no") {
-	EXTENSION("xattr", "xattr.c");
-}
