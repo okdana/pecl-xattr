@@ -52,6 +52,7 @@ function_entry xattr_functions[] = {
 	PHP_FE(xattr_get,		NULL)
 	PHP_FE(xattr_remove,	NULL)
 	PHP_FE(xattr_list,		NULL)
+	PHP_FE(xattr_supported,	NULL)
 	{NULL, NULL, NULL}	/* Must be the last line in xattr_functions[] */
 };
 /* }}} */
@@ -70,7 +71,7 @@ zend_module_entry xattr_module_entry = {
 	NULL,
 	PHP_MINFO(xattr),
 #if ZEND_MODULE_API_NO >= 20010901
-	"0.9",
+	"1.0",
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -214,6 +215,40 @@ PHP_FUNCTION(xattr_get)
 	}
 	
 	RETURN_FALSE;
+}
+/* }}} */
+
+/* {{{ proto bool xattr_supported(string path)
+   Checks if filesystem supports extended attributes */
+PHP_FUNCTION(xattr_supported)
+{
+	char *buffer, *path = NULL;
+	int error, tmp;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &tmp) == FAILURE) {
+		return;
+	}
+	
+	/* Is "test" a good name? */
+	error = getxattr(path, "user.test", buffer, 0);
+	if (error >= 0)
+		RETURN_TRUE;
+	
+	switch (errno) {
+		case ENOATTR:
+			RETURN_TRUE;
+		case ENOTSUP:
+			RETURN_FALSE;
+		case ENOENT:
+		case ENOTDIR:
+			php_error(E_WARNING, "%s File %s doesn't exists", get_active_function_name(TSRMLS_C), path);
+			break;
+		case EACCES:
+			php_error(E_WARNING, "%s Permission denied", get_active_function_name(TSRMLS_C));
+			break;
+	}
+	
+	RETURN_NULL();
 }
 /* }}} */
 

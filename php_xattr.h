@@ -41,6 +41,7 @@ PHP_FUNCTION(xattr_set);
 PHP_FUNCTION(xattr_get);
 PHP_FUNCTION(xattr_remove);
 PHP_FUNCTION(xattr_list);
+PHP_FUNCTION(xattr_supported);
 
 #endif	/* PHP_XATTR_H */
 
