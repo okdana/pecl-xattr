@@ -1,0 +1,13 @@
+// $Id$
+// vim:ft=javascript
+
+// If your extension references something external, use ARG_WITH
+// ARG_WITH("xattr", "for xattr support", "no");
+
+// Otherwise, use ARG_ENABLE
+// ARG_ENABLE("xattr", "enable xattr support", "no");
+
+if (PHP_XATTR != "no") {
+	EXTENSION("xattr", "xattr.c");
+}
+
