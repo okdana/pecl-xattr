@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE package SYSTEM "../package.dtd">
+<package>
+ <name>xattr</name>
+ <summary>Extended attributes.</summary>
+ <description>
+  This package allows to manipulate extended attributes on filesystems that support them. Requires libattr from Linux XFS project.
+ </description>
+ <license>PHP License</license>
+ <maintainers>
+  <maintainer>
+   <user>mg</user>
+   <name>Marcin Gibula</name>
+   <email>mg@iceni.pl</email>
+   <role>lead</role>
+  </maintainer>
+ </maintainers>
+
+ <release>
+  <version>0.9</version>
+  <date>2004-08-14</date>
+  <state>beta</state>
+  <notes>
+   First public release. Requires libattr from Linux XFS project.
+  </notes>
+  <configureoptions>
+    <configureoption name="with-xattr" default="autodetect" prompt="libattr library installation dir?"/>
+  </configureoptions>
+  <filelist>
+    <dir role="src" name="/">
+        <file role="doc">CREDITS</file>
+
+        <file role="src">config.m4</file>
+        <file role="src">config.w32</file>
+        <file role="src">php_xattr.h</file>
+        <file role="src">xattr.c</file>
+
+        <file role="test" name="tests/001.phpt"/>
+     </dir>
+  </filelist>
+ </release>
+</package>
+
