@@ -32,9 +32,6 @@
 #include <stdlib.h>
 #include <attr/attributes.h>
 
-#include <sys/types.h>
-#include <attr/xattr.h>
-
 /* {{{ xattr_functions[]
  *
  * Every user visible function must have an entry in xattr_functions[].
