@@ -22,7 +22,11 @@
 #include "config.h"
 #endif
 
-#define XATTR_BUFFER_SIZE	1024
+#define XATTR_BUFFER_SIZE	1024	/* Initial size for internal buffers, feel free to change it */
+
+/* These prefixes has been taken from attr(5) man page */
+#define XATTR_USER_PREFIX	"user."
+#define XATTR_ROOT_PREFIX	"trusted."
 
 #include "php.h"
 #include "php_ini.h"
@@ -32,6 +36,13 @@
 #include <stdlib.h>
 #include <attr/attributes.h>
 
+/*
+ * One beautiful day libattr will implement listing extended attributes,
+ * but until then we must to it on our own, so these headers are required.
+ */
+#include <sys/types.h>
+#include <attr/xattr.h>
+
 /* {{{ xattr_functions[]
  *
  * Every user visible function must have an entry in xattr_functions[].
@@ -40,6 +51,7 @@ function_entry xattr_functions[] = {
 	PHP_FE(xattr_set,		NULL)
 	PHP_FE(xattr_get,		NULL)
 	PHP_FE(xattr_remove,	NULL)
+	PHP_FE(xattr_list,		NULL)
 	{NULL, NULL, NULL}	/* Must be the last line in xattr_functions[] */
 };
 /* }}} */
@@ -92,7 +104,7 @@ PHP_MINFO_FUNCTION(xattr)
 /* }}} */
 
 /* {{{ proto bool xattr_set(string path, string name, string value [, int flags])
-   Set an extended attribute for a file */
+   Set an extended attribute of file */
 PHP_FUNCTION(xattr_set)
 {
 	char *attr_name = NULL;
@@ -205,7 +217,7 @@ PHP_FUNCTION(xattr_get)
 /* }}} */
 
 /* {{{ proto string xattr_remove(string path, string name [, int flags])
-   Remove an extended attribute from a file */
+   Remove an extended attribute of file */
 PHP_FUNCTION(xattr_remove)
 {
 	char *attr_name = NULL;
@@ -245,6 +257,116 @@ PHP_FUNCTION(xattr_remove)
 	RETURN_TRUE;
 }
 /* }}} */
+
+/* {{{ proto array xattr_list(string path [, int flags])
+   Get list of extended attributes of file */
+PHP_FUNCTION(xattr_list)
+{
+	char *buffer, *path = NULL;
+	char *p, *prefix;
+	int error, tmp, flags = 0;
+	ssize_t i = 0, buffer_size = XATTR_BUFFER_SIZE;
+	size_t len, prefix_len;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &path, &tmp, &flags) == FAILURE) {
+		return;
+	}
+	
+	buffer = emalloc(buffer_size);
+	if (!buffer)
+		RETURN_FALSE;
+	
+	/* Loop is required to take a list reliably */
+	do {
+		/* 
+		 * Call to this function with zero size buffer will return us
+		 * required size of our buffer (or an error).
+		 */
+		if (flags & ATTR_DONTFOLLOW) {
+			error = llistxattr(path, buffer, 0);
+		} else {
+			error = listxattr(path, buffer, 0);	
+		}
+		
+		/* Print warning on common errors */
+		if (error == -1) {
+			switch (errno) {
+				case ENOTSUP:
+					php_error(E_WARNING, "%s Operation not supported", get_active_function_name(TSRMLS_C));
+					break;
+				case ENOENT:
+				case ENOTDIR:
+					php_error(E_WARNING, "%s File %s doesn't exists", get_active_function_name(TSRMLS_C), path);
+					break;
+				case EACCES:
+					php_error(E_WARNING, "%s Permission denied", get_active_function_name(TSRMLS_C));
+					break;
+			}
+			
+			efree(buffer);
+			RETURN_FALSE;
+		}
+
+		/* Resize buffer to required size */
+		buffer_size = error;
+		buffer = erealloc(buffer, buffer_size);
+		if (!buffer)
+			RETURN_FALSE;
+		
+		if (flags & ATTR_DONTFOLLOW) {
+			error = llistxattr(path, buffer, buffer_size);
+		} else {
+			error = listxattr(path, buffer, buffer_size);	
+		}
+	
+		/*
+		 * Preceding functions may fail if extended attributes 
+		 * have been changed after we had read required buffer size.
+		 * That's why we will retry if errno is ERANGE.
+		 */
+	} while (error == -1 && errno == ERANGE);
+	
+	/* If there is still an error and it's not ERANGE than return false */
+	if (error == -1) {
+		efree(buffer);
+		RETURN_FALSE;
+	}
+	
+	buffer_size = error;
+	buffer = erealloc(buffer, buffer_size);
+	
+	array_init(return_value);
+	p = buffer;
+	
+	/*
+	 * Root namespace has prefix "trusted." and users namespace
+	 * has prefix "user.". 
+	 */
+	if (flags & ATTR_ROOT) {
+		prefix = XATTR_ROOT_PREFIX;
+	} else {
+		prefix = XATTR_USER_PREFIX;
+	}
+	
+	prefix_len = strlen(prefix);
+	
+	/* 
+	 * We go through whole list and add entries beginning with selected
+	 * prefix to the return_value array.
+	 */
+	while (i != buffer_size) {
+		len = strlen(p) + 1;	/* +1 for NULL */
+		if (strstr(p, prefix) == p) {
+			add_next_index_stringl(return_value, p + prefix_len, len - 1 - prefix_len, 1);
+		}
+		
+		p += len;
+		i += len;
+	}
+	
+	efree(buffer);
+}
+/* }}} */   
 
 /*
  * Local variables:
