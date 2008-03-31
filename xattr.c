@@ -71,7 +71,7 @@ zend_module_entry xattr_module_entry = {
 	NULL,
 	PHP_MINFO(xattr),
 #if ZEND_MODULE_API_NO >= 20010901
-	"1.1",
+	PHP_XATTR_VERSION,
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -100,7 +100,7 @@ PHP_MINFO_FUNCTION(xattr)
 {
 	php_info_print_table_start();
 	php_info_print_table_row(2, "xattr support", "enabled");
-	php_info_print_table_row(2, "PECL module version", "1.1");
+	php_info_print_table_row(2, "PECL module version", PHP_XATTR_VERSION);
 	php_info_print_table_end();
 }
 /* }}} */
