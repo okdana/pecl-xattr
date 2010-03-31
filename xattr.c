@@ -47,7 +47,7 @@
  *
  * Every user visible function must have an entry in xattr_functions[].
  */
-function_entry xattr_functions[] = {
+zend_function_entry xattr_functions[] = {
 	PHP_FE(xattr_set,		NULL)
 	PHP_FE(xattr_get,		NULL)
 	PHP_FE(xattr_remove,	NULL)
