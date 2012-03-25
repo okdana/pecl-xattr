@@ -119,7 +119,11 @@ PHP_FUNCTION(xattr_set)
 	}
 
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+	if (php_check_open_basedir(path TSRMLS_CC) 
+#if PHP_API_VERSION < 20100412
+	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
+#endif
+	) {
 		RETURN_FALSE;
 	}
 	
@@ -168,7 +172,11 @@ PHP_FUNCTION(xattr_get)
 	}
 
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+	if (php_check_open_basedir(path TSRMLS_CC) 
+#if PHP_API_VERSION < 20100412
+	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
+#endif
+	) {
 		RETURN_FALSE;
 	}
 	
@@ -240,7 +248,11 @@ PHP_FUNCTION(xattr_supported)
 	}
 	
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+	if (php_check_open_basedir(path TSRMLS_CC) 
+#if PHP_API_VERSION < 20100412
+	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
+#endif
+	) {
 		RETURN_NULL();
 	}
 	
@@ -285,7 +297,11 @@ PHP_FUNCTION(xattr_remove)
 	}
 	
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+	if (php_check_open_basedir(path TSRMLS_CC) 
+#if PHP_API_VERSION < 20100412
+	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
+#endif
+	) {
 		RETURN_FALSE;
 	}
 	
@@ -334,7 +350,11 @@ PHP_FUNCTION(xattr_list)
 	}
 	
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) || (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))) {
+	if (php_check_open_basedir(path TSRMLS_CC) 
+#if PHP_API_VERSION < 20100412
+	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
+#endif
+	) {
 		RETURN_FALSE;
 	}
 	
