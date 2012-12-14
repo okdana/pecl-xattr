@@ -14,18 +14,18 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>mg@iceni.pl</email>
   <active>yes</active>
  </lead>
- <date>2008-07-01</date>
- <time>17:02:58</time>
+ <date>2012-12-13</date>
+ <time>22:45:12</time>
  <version>
-  <release>1.1.0</release>
-  <api>1.1.0</api>
+  <release>1.2.0</release>
+  <api>1.2.0</api>
  </version>
  <stability>
   <release>stable</release>
   <api>stable</api>
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>Enforce open_basedir and safe_mode checks.
+ <notes>Fixed build on PHP 5.3+
  </notes>
  <contents>
   <dir name="/">
@@ -53,6 +53,19 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <configureoption default="autodetect" name="with-xattr" prompt="libattr library installation dir?" />
  </extsrcrelease>
  <changelog>
+  <release>
+   <version>
+    <release>1.1.0</release>
+    <api>1.1.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2008-07-01</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>Enforce open_basedir and safe_mode checks.</notes>
+  </release>
   <release>
    <version>
     <release>1.0</release>
