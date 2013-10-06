@@ -32,12 +32,12 @@ if test "$PHP_XATTR" != "no"; then
 
   PHP_CHECK_LIBRARY($LIBNAME,$LIBSYMBOL,
   [
-    PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $XATTR_DIR/lib, XATTR_SHARED_LIBADD)
+    PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $XATTR_DIR/$PHP_LIBDIR, XATTR_SHARED_LIBADD)
     AC_DEFINE(HAVE_XATTRLIB,1,[ ])
   ],[
     AC_MSG_ERROR([wrong xattr lib version or lib not found])
   ],[
-    -L$XATTR_DIR/lib -lm -ldl
+    -L$XATTR_DIR/$PHP_LIBDIR -lm -ldl
   ])
   
   PHP_SUBST(XATTR_SHARED_LIBADD)
