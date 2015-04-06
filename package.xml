@@ -25,15 +25,21 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <api>stable</api>
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>Fixed build on PHP 5.3+
+ <notes>
+- PHP 7 compatibility
+- add LICENSE to documentation
+- add arginfo for reflection
+- add a test for set/get/list/remove functions
  </notes>
  <contents>
   <dir name="/">
    <dir name="tests">
     <file name="001.phpt" role="test" />
+    <file name="002-set-get.phpt" role="test" />
    </dir> <!-- //tests -->
    <file name="config.m4" role="src" />
    <file name="CREDITS" role="doc" />
+   <file name="LICENSE" role="doc" />
    <file name="php_xattr.h" role="src" />
    <file name="xattr.c" role="src" />
   </dir> <!-- / -->
@@ -53,6 +59,20 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <configureoption default="autodetect" name="with-xattr" prompt="libattr library installation dir?" />
  </extsrcrelease>
  <changelog>
+  <release>
+   <version>
+    <release>1.2.0</release>
+    <api>1.2.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2012-12-13</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>Fixed build on PHP 5.3+
+   </notes>
+  </release>
   <release>
    <version>
     <release>1.1.0</release>
