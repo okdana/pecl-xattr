@@ -26,5 +26,6 @@ ltmain.sh.backup
 missing
 mkinstalldirs
 run-tests.php
+tmp-php.ini
 modules
-xattr*tgz
+xattr-*.tgz

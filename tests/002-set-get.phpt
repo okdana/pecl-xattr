@@ -3,7 +3,7 @@ set/get/list/remove functions
 --SKIPIF--
 <?php
 if (!extension_loaded("xattr")) die("skip xattr extension not loaded");
-if (!xattr_supported(".")       die("skip xattr not supported here");
+if (!xattr_supported(__FILE__)) die("skip xattr not supported here");
 ?>
 --FILE--
 <?php 

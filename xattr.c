@@ -439,10 +439,10 @@ PHP_FUNCTION(xattr_list)
 		}
 	
 		/*
-		 * Preceding functions may fail if extended attributes
-		 * have been changed after we read required buffer size.
-		 * That's why we will retry if errno is ERANGE.
-		 */
+		 * Preceding functions may fail if extended attributes
+		 * have been changed after we read required buffer size.
+		 * That's why we will retry if errno is ERANGE.
+		 */
 	} while (error == -1 && errno == ERANGE);
 	
 	/* If there is still an error and it's not ERANGE then return false */
