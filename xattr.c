@@ -82,9 +82,7 @@ zend_function_entry xattr_functions[] = {
 /* {{{ xattr_module_entry
  */
 zend_module_entry xattr_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
-#endif
 	"xattr",
 	xattr_functions,
 	PHP_MINIT(xattr),
@@ -92,9 +90,7 @@ zend_module_entry xattr_module_entry = {
 	NULL,
 	NULL,
 	PHP_MINFO(xattr),
-#if ZEND_MODULE_API_NO >= 20010901
 	PHP_XATTR_VERSION,
-#endif
 	STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
@@ -144,7 +140,7 @@ PHP_FUNCTION(xattr_set)
 
 	/* Enforce open_basedir and safe_mode */
 	if (php_check_open_basedir(path TSRMLS_CC) 
-#if PHP_API_VERSION < 20100412
+#if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
@@ -199,7 +195,7 @@ PHP_FUNCTION(xattr_get)
 
 	/* Enforce open_basedir and safe_mode */
 	if (php_check_open_basedir(path TSRMLS_CC) 
-#if PHP_API_VERSION < 20100412
+#if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
@@ -278,7 +274,7 @@ PHP_FUNCTION(xattr_supported)
 	
 	/* Enforce open_basedir and safe_mode */
 	if (php_check_open_basedir(path TSRMLS_CC) 
-#if PHP_API_VERSION < 20100412
+#if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
@@ -329,7 +325,7 @@ PHP_FUNCTION(xattr_remove)
 	
 	/* Enforce open_basedir and safe_mode */
 	if (php_check_open_basedir(path TSRMLS_CC) 
-#if PHP_API_VERSION < 20100412
+#if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
@@ -384,7 +380,7 @@ PHP_FUNCTION(xattr_list)
 	
 	/* Enforce open_basedir and safe_mode */
 	if (php_check_open_basedir(path TSRMLS_CC) 
-#if PHP_API_VERSION < 20100412
+#if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {

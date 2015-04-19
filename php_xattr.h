@@ -24,7 +24,7 @@
 extern zend_module_entry xattr_module_entry;
 #define phpext_xattr_ptr &xattr_module_entry
 
-#define PHP_XATTR_VERSION "1.2.1"
+#define PHP_XATTR_VERSION "1.3.0dev"
 
 #ifdef PHP_WIN32
 #define PHP_XATTR_API __declspec(dllexport)
