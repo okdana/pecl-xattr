@@ -13,10 +13,9 @@
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
   | Author: Marcin Gibula <mg@iceni.pl>                                  |
+  |         Remi Collet <remi@php.net>                                   |
   +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifndef PHP_XATTR_H
 #define PHP_XATTR_H

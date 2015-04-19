@@ -13,10 +13,9 @@
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
   | Author: Marcin Gibula <mg@iceni.pl>                                  |
+  |         Remi Collet <remi@php.net>                                   |
   +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -26,11 +25,12 @@
 
 #define XATTR_DONTFOLLOW 1
 
-#define XATTR_USER       1
 #define XATTR_TRUSTED    2
 #define XATTR_SYSTEM     4
 #define XATTR_SECURITY   8
-#define XATTR_ALL       16
+#define XATTR_USER      16
+#define XATTR_ALL       32
+#define XATTR_MASK      (XATTR_TRUSTED|XATTR_SYSTEM|XATTR_SECURITY|XATTR_USER|XATTR_ALL)
 #define XATTR_ROOT       XATTR_TRUSTED
 
 /* These prefixes have been taken from attr(5) man page */
@@ -46,10 +46,6 @@
 
 #include <stdlib.h>
 
-/*
- * One beautiful day libattr will implement listing extended attributes,
- * but until then we must do it on our own, so these headers are required.
- */
 #include <sys/types.h>
 #include <sys/xattr.h>
 
@@ -139,8 +135,25 @@ PHP_MINFO_FUNCTION(xattr)
 }
 /* }}} */
 
-static char *add_prefix(char *name, zend_long flags) {
+#define check_prefix(flags) add_prefix(NULL, flags TSRMLS_DC)
+
+static char *add_prefix(char *name, zend_long flags TSRMLS_DC) {
 	char *ret;
+
+	if ((flags & XATTR_MASK) > 0 &&
+	    (flags & XATTR_MASK) != XATTR_TRUSTED &&
+	    (flags & XATTR_MASK) != XATTR_SYSTEM &&
+	    (flags & XATTR_MASK) != XATTR_SECURITY &&
+	    (flags & XATTR_MASK) != XATTR_USER &&
+	    (flags & XATTR_MASK) != XATTR_ALL) {
+		php_error(E_NOTICE, "%s Bad option, single namespace expected", get_active_function_name(TSRMLS_C));
+	}
+	if (!name) {
+		return NULL;
+	}
+	if ((flags & XATTR_MASK) == XATTR_ALL && !strchr(name, '.')) {
+		php_error(E_NOTICE, "%s Bad option, missing namespace, XATTR_ALL ignored", get_active_function_name(TSRMLS_C));
+	}
 
 	if (flags & XATTR_TRUSTED) {
 		spprintf(&ret, 0, "%s%s", XATTR_TRUSTED_PREFIX, name);
@@ -177,7 +190,7 @@ PHP_FUNCTION(xattr_set)
 	}
 
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) 
+	if (php_check_open_basedir(path TSRMLS_CC)
 #if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
@@ -185,8 +198,8 @@ PHP_FUNCTION(xattr_set)
 		RETURN_FALSE;
 	}
 
-	prefixed_name = add_prefix(attr_name, flags);
-	/* Attempt to set an attribute, warn if failed. */ 
+	prefixed_name = add_prefix(attr_name, flags TSRMLS_CC);
+	/* Attempt to set an attribute, warn if failed. */
 	if (flags & XATTR_DONTFOLLOW) {
 		error = lsetxattr(path, prefixed_name, attr_value, (int)value_len, (int)(flags & (XATTR_CREATE | XATTR_REPLACE)));
 	} else {
@@ -215,7 +228,7 @@ PHP_FUNCTION(xattr_set)
 				php_error(E_WARNING, "%s Attribute %s doesn't exists", get_active_function_name(TSRMLS_C), prefixed_name);
 				break;
 		}
-		
+
 		RETVAL_FALSE;
 	} else {
 		RETVAL_TRUE;
@@ -242,17 +255,17 @@ PHP_FUNCTION(xattr_get)
 	}
 
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) 
+	if (php_check_open_basedir(path TSRMLS_CC)
 #if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
 		RETURN_FALSE;
 	}
-	
-	prefixed_name = add_prefix(attr_name, flags);
 
-	/* 
+	prefixed_name = add_prefix(attr_name, flags TSRMLS_CC);
+
+	/*
 	 * If buffer is too small then attr_get sets errno to E2BIG and tells us
 	 * how many bytes are required by setting buffer_size variable.
 	 */
@@ -316,21 +329,21 @@ PHP_FUNCTION(xattr_supported)
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &path, &tmp, &flags) == FAILURE) {
 		return;
 	}
-	
+
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) 
+	if (php_check_open_basedir(path TSRMLS_CC)
 #if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
 		RETURN_NULL();
 	}
-	
-	/* Is "test" a good name? */
+
+	/* Is "user.test.is.supported" a good name? */
 	if (flags & XATTR_DONTFOLLOW) {
-		error = lgetxattr(path, "user.test", buffer, 0);
+		error = lgetxattr(path, "user.test.is.supported", buffer, 0);
 	} else {
-		error = getxattr(path, "user.test", buffer, 0);
+		error = getxattr(path, "user.test.is.supported", buffer, 0);
 	}
 
 	if (error >= 0) {
@@ -350,7 +363,7 @@ PHP_FUNCTION(xattr_supported)
 			php_error(E_WARNING, "%s Permission denied", get_active_function_name(TSRMLS_C));
 			break;
 	}
-	
+
 	RETURN_NULL();
 }
 /* }}} */
@@ -364,23 +377,23 @@ PHP_FUNCTION(xattr_remove)
 	int error;
 	strsize_t tmp;
 	zend_long flags = 0;
-	
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &path, &tmp, &attr_name, &tmp, &flags) == FAILURE) {
 		return;
 	}
-	
+
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) 
+	if (php_check_open_basedir(path TSRMLS_CC)
 #if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
 		RETURN_FALSE;
 	}
-	
-	prefixed_name = add_prefix(attr_name, flags);
-	
-	/* Attempt to remove an attribute, warn if failed. */ 
+
+	prefixed_name = add_prefix(attr_name, flags TSRMLS_CC);
+
+	/* Attempt to remove an attribute, warn if failed. */
 	if (flags & XATTR_DONTFOLLOW) {
 		error = lremovexattr(path, prefixed_name);
 	} else {
@@ -407,10 +420,10 @@ PHP_FUNCTION(xattr_remove)
 				php_error(E_WARNING, "%s File %s doesn't exists", get_active_function_name(TSRMLS_C), path);
 				break;
 		}
-		
+
 		RETURN_FALSE;
 	}
-	
+
 	RETURN_TRUE;
 }
 /* }}} */
@@ -426,34 +439,36 @@ PHP_FUNCTION(xattr_list)
 	zend_long flags = 0;
 	size_t i = 0, buffer_size = XATTR_BUFFER_SIZE;
 	size_t len, prefix_len;
-	
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &path, &tmp, &flags) == FAILURE) {
 		return;
 	}
-	
+
+	check_prefix(flags);
+
 	/* Enforce open_basedir and safe_mode */
-	if (php_check_open_basedir(path TSRMLS_CC) 
+	if (php_check_open_basedir(path TSRMLS_CC)
 #if PHP_VERSION_ID < 50400
 	|| (PG(safe_mode) && !php_checkuid(path, NULL, CHECKUID_DISALLOW_FILE_NOT_EXISTS))
 #endif
 	) {
 		RETURN_FALSE;
 	}
-	
+
 	buffer = emalloc(buffer_size);
-	
+
 	/* Loop is required to get a list reliably */
 	do {
-		/* 
+		/*
 		 * Call to this function with zero size buffer will return us
 		 * required size of our buffer in return (or an error).
 		 */
 		if (flags & XATTR_DONTFOLLOW) {
 			error = llistxattr(path, buffer, 0);
 		} else {
-			error = listxattr(path, buffer, 0);	
+			error = listxattr(path, buffer, 0);
 		}
-		
+
 		/* Print warning on common errors */
 		if (error == -1) {
 			switch (errno) {
@@ -468,7 +483,7 @@ PHP_FUNCTION(xattr_list)
 					php_error(E_WARNING, "%s Permission denied", get_active_function_name(TSRMLS_C));
 					break;
 			}
-			
+
 			efree(buffer);
 			RETURN_FALSE;
 		}
@@ -476,34 +491,34 @@ PHP_FUNCTION(xattr_list)
 		/* Resize buffer to the required size */
 		buffer_size = error;
 		buffer = erealloc(buffer, buffer_size);
-		
+
 		if (flags & XATTR_DONTFOLLOW) {
 			error = llistxattr(path, buffer, buffer_size);
 		} else {
-			error = listxattr(path, buffer, buffer_size);	
+			error = listxattr(path, buffer, buffer_size);
 		}
-	
+
 		/*
 		 * Preceding functions may fail if extended attributes
 		 * have been changed after we read required buffer size.
 		 * That's why we will retry if errno is ERANGE.
 		 */
 	} while (error == -1 && errno == ERANGE);
-	
+
 	/* If there is still an error and it's not ERANGE then return false */
 	if (error == -1) {
 		efree(buffer);
 		RETURN_FALSE;
 	}
-	
+
 	buffer_size = error;
 	buffer = erealloc(buffer, buffer_size);
-	
+
 	array_init(return_value);
 	p = buffer;
-	
+
 	/*
-	 * Root namespace has the prefix "trusted." and users namespace "user.". 
+	 * Root namespace has the prefix "trusted." and users namespace "user.".
 	 */
 	if (flags & XATTR_SYSTEM) {
 		prefix = XATTR_SYSTEM_PREFIX;
@@ -514,10 +529,10 @@ PHP_FUNCTION(xattr_list)
 	} else {
 		prefix = XATTR_USER_PREFIX;
 	}
-	
+
 	prefix_len = strlen(prefix);
-	
-	/* 
+
+	/*
 	 * We go through the whole list and add entries beginning with selected
 	 * prefix to the return_value array.
 	 */
@@ -536,14 +551,14 @@ PHP_FUNCTION(xattr_list)
 			add_next_index_stringl(return_value, p + prefix_len, len - 1 - prefix_len);
 #endif
 		}
-		
+
 		p += len;
 		i += len;
 	}
-	
+
 	efree(buffer);
 }
-/* }}} */   
+/* }}} */
 
 /*
  * Local variables:
