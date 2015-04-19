@@ -24,9 +24,19 @@
 
 #define XATTR_BUFFER_SIZE	1024	/* Initial size for internal buffers, feel free to change it */
 
+#define XATTR_DONTFOLLOW 1
+
+#define XATTR_USER       1
+#define XATTR_ROOT       2
+#define XATTR_SYSTEM     4
+#define XATTR_SECURITY   8
+#define XATTR_ALL       16
+
 /* These prefixes have been taken from attr(5) man page */
-#define XATTR_USER_PREFIX	"user."
-#define XATTR_ROOT_PREFIX	"trusted."
+#define XATTR_USER_PREFIX      "user."
+#define XATTR_ROOT_PREFIX      "trusted."
+#define XATTR_SYSTEM_PREFIX    "system."
+#define XATTR_SECURITY_PREFIX  "security."
 
 #include "php.h"
 #include "php_ini.h"
@@ -34,14 +44,13 @@
 #include "php_xattr.h"
 
 #include <stdlib.h>
-#include <attr/attributes.h>
 
 /*
  * One beautiful day libattr will implement listing extended attributes,
  * but until then we must do it on our own, so these headers are required.
  */
 #include <sys/types.h>
-#include <attr/xattr.h>
+#include <sys/xattr.h>
 
 ZEND_BEGIN_ARG_INFO_EX(xattr_set_arginfo, 0, 0, 3)
   ZEND_ARG_INFO(0, path)
@@ -103,10 +112,15 @@ ZEND_GET_MODULE(xattr)
  */
 PHP_MINIT_FUNCTION(xattr)
 {
-	REGISTER_LONG_CONSTANT("XATTR_ROOT", ATTR_ROOT, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("XATTR_DONTFOLLOW", ATTR_DONTFOLLOW, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("XATTR_CREATE", ATTR_CREATE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("XATTR_REPLACE", ATTR_REPLACE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_USER",       XATTR_USER,       CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_ROOT",       XATTR_ROOT,       CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_SYSTEM",     XATTR_SYSTEM,     CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_SECURITY",   XATTR_SECURITY,   CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_ALL",        XATTR_ALL,        CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("XATTR_DONTFOLLOW", XATTR_DONTFOLLOW, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_CREATE",     XATTR_CREATE,     CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_REPLACE",    XATTR_REPLACE,    CONST_CS | CONST_PERSISTENT);
 
 	return SUCCESS;
 }
@@ -123,11 +137,33 @@ PHP_MINFO_FUNCTION(xattr)
 }
 /* }}} */
 
+static char *add_prefix(char *name, zend_long flags) {
+	char *ret;
+
+	if (flags & XATTR_ROOT) {
+		spprintf(&ret, 0, "%s%s", XATTR_ROOT_PREFIX, name);
+
+	} else if (flags & XATTR_SYSTEM) {
+		spprintf(&ret, 0, "%s%s", XATTR_SYSTEM_PREFIX, name);
+
+	} else if (flags & XATTR_SECURITY) {
+		spprintf(&ret, 0, "%s%s", XATTR_SECURITY_PREFIX, name);
+
+	} else if ((flags & XATTR_ROOT) || !strchr(name, '.')) {
+		spprintf(&ret, 0, "%s%s", XATTR_USER_PREFIX, name);
+
+	} else {
+		/* prefix provided in input */
+		ret = name;
+	}
+	return ret;
+}
+
 /* {{{ proto bool xattr_set(string path, string name, string value [, int flags])
    Set an extended attribute of file */
 PHP_FUNCTION(xattr_set)
 {
-	char *attr_name = NULL;
+	char *attr_name = NULL, *prefixed_name;
 	char *attr_value = NULL;
 	char *path = NULL;
 	int error;
@@ -146,12 +182,14 @@ PHP_FUNCTION(xattr_set)
 	) {
 		RETURN_FALSE;
 	}
-	
-	/* Ensure that only allowed bits are set */
-	flags &= ATTR_ROOT | ATTR_DONTFOLLOW | ATTR_CREATE | ATTR_REPLACE; 
-	
+
+	prefixed_name = add_prefix(attr_name, flags);
 	/* Attempt to set an attribute, warn if failed. */ 
-	error = attr_set(path, attr_name, attr_value, (int)value_len, (int)flags);
+	if (flags & XATTR_DONTFOLLOW) {
+		error = lsetxattr(path, prefixed_name, attr_value, (int)value_len, (int)(flags & (XATTR_CREATE | XATTR_REPLACE)));
+	} else {
+		error = setxattr(path, prefixed_name, attr_value, (int)value_len, (int)(flags & (XATTR_CREATE | XATTR_REPLACE)));
+	}
 	if (error == -1) {
 		switch (errno) {
 			case E2BIG:
@@ -168,12 +206,21 @@ PHP_FUNCTION(xattr_set)
 			case ENOTDIR:
 				php_error(E_WARNING, "%s File %s doesn't exists", get_active_function_name(TSRMLS_C), path);
 				break;
+			case EEXIST:
+				php_error(E_WARNING, "%s Attribute %s already exists", get_active_function_name(TSRMLS_C), prefixed_name);
+				break;
+			case ENODATA:
+				php_error(E_WARNING, "%s Attribute %s doesn't exists", get_active_function_name(TSRMLS_C), prefixed_name);
+				break;
 		}
 		
-		RETURN_FALSE;
+		RETVAL_FALSE;
+	} else {
+		RETVAL_TRUE;
 	}
-	
-	RETURN_TRUE;
+	if (prefixed_name != attr_name) {
+		efree(prefixed_name);
+	}
 }
 /* }}} */
 
@@ -181,13 +228,12 @@ PHP_FUNCTION(xattr_set)
    Returns a value of an extended attribute */
 PHP_FUNCTION(xattr_get)
 {
-	char *attr_name = NULL;
+	char *attr_name = NULL, *prefixed_name;
 	char *attr_value = NULL;
 	char *path = NULL;
-	int error;
 	strsize_t tmp;
 	zend_long flags = 0;
-	int buffer_size = XATTR_BUFFER_SIZE;
+	size_t buffer_size;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &path, &tmp, &attr_name, &tmp, &flags) == FAILURE) {
 		return;
@@ -202,45 +248,42 @@ PHP_FUNCTION(xattr_get)
 		RETURN_FALSE;
 	}
 	
-	/* Ensure that only allowed bits are set */
-	flags &= ATTR_ROOT | ATTR_DONTFOLLOW; 
-	
-	/* Allocate a buffer with starting size XATTR_BUFFER_SIZE bytes */
-	attr_value = emalloc(buffer_size);
-	if (!attr_value)
-		RETURN_FALSE;
-	
+	prefixed_name = add_prefix(attr_name, flags);
+
 	/* 
 	 * If buffer is too small then attr_get sets errno to E2BIG and tells us
 	 * how many bytes are required by setting buffer_size variable.
 	 */
-	error = attr_get(path, attr_name, attr_value, &buffer_size, (int)flags);
+	if (flags & XATTR_DONTFOLLOW) {
+		buffer_size = lgetxattr(path, prefixed_name, attr_value, 0);
+	} else {
+		buffer_size = getxattr(path, prefixed_name, attr_value, 0);
+	}
+	if (buffer_size != (size_t)-1) {
+		attr_value = emalloc(buffer_size+1);
 
-	/* 
-	 * Loop is necessary in case that someone edited extended attributes
-	 * and our estimated buffer size is no longer correct.
-	 */
-	while (error && errno == E2BIG) {
-		attr_value = erealloc(attr_value, buffer_size);
-		if (!attr_value)
-			RETURN_FALSE;
-		
-		error = attr_get(path, attr_name, attr_value, &buffer_size, (int)flags);
+		if (flags & XATTR_DONTFOLLOW) {
+			buffer_size = lgetxattr(path, prefixed_name, attr_value, buffer_size);
+		} else {
+			buffer_size = getxattr(path, prefixed_name, attr_value, buffer_size);
+		}
+		attr_value[buffer_size] = 0;
+	}
+
+	if (prefixed_name != attr_name) {
+		efree(prefixed_name);
 	}
 
 	/* Return a string if everything is ok */
-	if (!error) {
+	if (buffer_size != (size_t)-1) {
 		_RETVAL_STRINGL(attr_value, buffer_size, 1); /* copy + free instead of realloc */
 		efree(attr_value);
 		return;
 	}
-	
-	/* Error handling part */
-	efree(attr_value);
-	
+
 	/* Give warning for some common error conditions */
 	switch (errno) {
-		case ENOATTR:
+		case ENODATA:
 			break;
 		case ENOENT:
 		case ENOTDIR:
@@ -254,7 +297,7 @@ PHP_FUNCTION(xattr_get)
 			php_error(E_WARNING, "%s Operation not supported", get_active_function_name(TSRMLS_C));
 			break;
 	}
-	
+
 	RETURN_FALSE;
 }
 /* }}} */
@@ -282,17 +325,18 @@ PHP_FUNCTION(xattr_supported)
 	}
 	
 	/* Is "test" a good name? */
-	if (flags & ATTR_DONTFOLLOW) {
+	if (flags & XATTR_DONTFOLLOW) {
 		error = lgetxattr(path, "user.test", buffer, 0);
 	} else {
 		error = getxattr(path, "user.test", buffer, 0);
 	}
 
-	if (error >= 0)
+	if (error >= 0) {
 		RETURN_TRUE;
-	
+	}
+
 	switch (errno) {
-		case ENOATTR:
+		case ENODATA:
 			RETURN_TRUE;
 		case ENOTSUP:
 			RETURN_FALSE;
@@ -313,7 +357,7 @@ PHP_FUNCTION(xattr_supported)
    Remove an extended attribute of file */
 PHP_FUNCTION(xattr_remove)
 {
-	char *attr_name = NULL;
+	char *attr_name = NULL, *prefixed_name;
 	char *path = NULL;
 	int error;
 	strsize_t tmp;
@@ -332,11 +376,18 @@ PHP_FUNCTION(xattr_remove)
 		RETURN_FALSE;
 	}
 	
-	/* Ensure that only allowed bits are set */
-	flags &= ATTR_ROOT | ATTR_DONTFOLLOW; 
+	prefixed_name = add_prefix(attr_name, flags);
 	
 	/* Attempt to remove an attribute, warn if failed. */ 
-	error = attr_remove(path, attr_name, (int)flags);
+	if (flags & XATTR_DONTFOLLOW) {
+		error = lremovexattr(path, prefixed_name);
+	} else {
+		error = removexattr(path, prefixed_name);
+	}
+	if (prefixed_name != attr_name) {
+		efree(prefixed_name);
+	}
+
 	if (error == -1) {
 		switch (errno) {
 			case E2BIG:
@@ -388,8 +439,6 @@ PHP_FUNCTION(xattr_list)
 	}
 	
 	buffer = emalloc(buffer_size);
-	if (!buffer)
-		RETURN_FALSE;
 	
 	/* Loop is required to get a list reliably */
 	do {
@@ -397,7 +446,7 @@ PHP_FUNCTION(xattr_list)
 		 * Call to this function with zero size buffer will return us
 		 * required size of our buffer in return (or an error).
 		 */
-		if (flags & ATTR_DONTFOLLOW) {
+		if (flags & XATTR_DONTFOLLOW) {
 			error = llistxattr(path, buffer, 0);
 		} else {
 			error = listxattr(path, buffer, 0);	
@@ -425,10 +474,8 @@ PHP_FUNCTION(xattr_list)
 		/* Resize buffer to the required size */
 		buffer_size = error;
 		buffer = erealloc(buffer, buffer_size);
-		if (!buffer)
-			RETURN_FALSE;
 		
-		if (flags & ATTR_DONTFOLLOW) {
+		if (flags & XATTR_DONTFOLLOW) {
 			error = llistxattr(path, buffer, buffer_size);
 		} else {
 			error = listxattr(path, buffer, buffer_size);	
@@ -456,7 +503,11 @@ PHP_FUNCTION(xattr_list)
 	/*
 	 * Root namespace has the prefix "trusted." and users namespace "user.". 
 	 */
-	if (flags & ATTR_ROOT) {
+	if (flags & XATTR_SYSTEM) {
+		prefix = XATTR_SYSTEM_PREFIX;
+	} else if (flags & XATTR_SECURITY) {
+		prefix = XATTR_SECURITY_PREFIX;
+	} else if (flags & XATTR_ROOT) {
 		prefix = XATTR_ROOT_PREFIX;
 	} else {
 		prefix = XATTR_USER_PREFIX;
@@ -470,7 +521,13 @@ PHP_FUNCTION(xattr_list)
 	 */
 	while (i != buffer_size) {
 		len = strlen(p) + 1;	/* +1 for NULL */
-		if (strstr(p, prefix) == p) {
+		if (flags & XATTR_ALL) {
+#if PHP_MAJOR_VERSION < 7
+			add_next_index_stringl(return_value, p, len - 1, 1);
+#else
+			add_next_index_stringl(return_value, p, len - 1);
+#endif
+		} else if (strstr(p, prefix) == p) {
 #if PHP_MAJOR_VERSION < 7
 			add_next_index_stringl(return_value, p + prefix_len, len - 1 - prefix_len, 1);
 #else
