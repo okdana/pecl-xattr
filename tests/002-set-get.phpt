@@ -7,7 +7,7 @@ if (!xattr_supported(__FILE__)) die("skip xattr not supported here");
 ?>
 --FILE--
 <?php 
-$attr = 'php_test';
+$attr = 'php.test';
 $fic  = 'foo.txt';
 echo "-- Supported\n";
 file_put_contents($fic, $fic);
@@ -17,7 +17,7 @@ echo "-- Set/Get\n";
 var_dump(xattr_set($fic, $attr, 'foo'));
 var_dump(xattr_get($fic, $attr));
 var_dump(xattr_get($fic, $attr, XATTR_USER));
-var_dump(xattr_get($fic, "user.$attr"));
+var_dump(xattr_get($fic, "user.$attr", XATTR_ALL));
 
 var_dump(xattr_set($fic, $attr, 'bar'));
 var_dump(xattr_get($fic, $attr));
@@ -47,7 +47,7 @@ string(3) "bar"
 -- List
 array(1) {
   [0]=>
-  string(8) "php_test"
+  string(8) "php.test"
 }
 bool(true)
 -- Remove

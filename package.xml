@@ -34,7 +34,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <notes>
 - drop support for PHP older than 5.3
 - use glibc instead of libattr
-- add XATTR_SYSTEM, XATTR_SECURITY and XATTR_ALL
+- add XATTR_TRUSTED, XATTR_USER, XATTR_SYSTEM, XATTR_SECURITY and XATTR_ALL
+- allow to manage attributes in all namespaces
  </notes>
  <contents>
   <dir name="/">

@@ -27,14 +27,15 @@
 #define XATTR_DONTFOLLOW 1
 
 #define XATTR_USER       1
-#define XATTR_ROOT       2
+#define XATTR_TRUSTED    2
 #define XATTR_SYSTEM     4
 #define XATTR_SECURITY   8
 #define XATTR_ALL       16
+#define XATTR_ROOT       XATTR_TRUSTED
 
 /* These prefixes have been taken from attr(5) man page */
 #define XATTR_USER_PREFIX      "user."
-#define XATTR_ROOT_PREFIX      "trusted."
+#define XATTR_TRUSTED_PREFIX   "trusted."
 #define XATTR_SYSTEM_PREFIX    "system."
 #define XATTR_SECURITY_PREFIX  "security."
 
@@ -114,6 +115,7 @@ PHP_MINIT_FUNCTION(xattr)
 {
 	REGISTER_LONG_CONSTANT("XATTR_USER",       XATTR_USER,       CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("XATTR_ROOT",       XATTR_ROOT,       CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("XATTR_TRUSTED",    XATTR_TRUSTED,    CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("XATTR_SYSTEM",     XATTR_SYSTEM,     CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("XATTR_SECURITY",   XATTR_SECURITY,   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("XATTR_ALL",        XATTR_ALL,        CONST_CS | CONST_PERSISTENT);
@@ -140,8 +142,8 @@ PHP_MINFO_FUNCTION(xattr)
 static char *add_prefix(char *name, zend_long flags) {
 	char *ret;
 
-	if (flags & XATTR_ROOT) {
-		spprintf(&ret, 0, "%s%s", XATTR_ROOT_PREFIX, name);
+	if (flags & XATTR_TRUSTED) {
+		spprintf(&ret, 0, "%s%s", XATTR_TRUSTED_PREFIX, name);
 
 	} else if (flags & XATTR_SYSTEM) {
 		spprintf(&ret, 0, "%s%s", XATTR_SYSTEM_PREFIX, name);
@@ -149,12 +151,12 @@ static char *add_prefix(char *name, zend_long flags) {
 	} else if (flags & XATTR_SECURITY) {
 		spprintf(&ret, 0, "%s%s", XATTR_SECURITY_PREFIX, name);
 
-	} else if ((flags & XATTR_ROOT) || !strchr(name, '.')) {
-		spprintf(&ret, 0, "%s%s", XATTR_USER_PREFIX, name);
-
-	} else {
+	} else if ((flags & XATTR_ALL) && strchr(name, '.')) {
 		/* prefix provided in input */
 		ret = name;
+
+	} else {
+		spprintf(&ret, 0, "%s%s", XATTR_USER_PREFIX, name);
 	}
 	return ret;
 }
@@ -507,8 +509,8 @@ PHP_FUNCTION(xattr_list)
 		prefix = XATTR_SYSTEM_PREFIX;
 	} else if (flags & XATTR_SECURITY) {
 		prefix = XATTR_SECURITY_PREFIX;
-	} else if (flags & XATTR_ROOT) {
-		prefix = XATTR_ROOT_PREFIX;
+	} else if (flags & XATTR_TRUSTED) {
+		prefix = XATTR_TRUSTED_PREFIX;
 	} else {
 		prefix = XATTR_USER_PREFIX;
 	}
