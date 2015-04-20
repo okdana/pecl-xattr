@@ -1,5 +1,5 @@
 --TEST--
-set/get/list/remove functions
+set/get/list functions and symlink
 --SKIPIF--
 <?php
 if (!extension_loaded("xattr")) die("skip xattr extension not loaded");

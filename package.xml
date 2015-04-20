@@ -36,6 +36,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
 - use glibc instead of libattr
 - add XATTR_TRUSTED, XATTR_USER, XATTR_SYSTEM, XATTR_SECURITY and XATTR_ALL
 - allow to manage attributes in all namespaces
+- more tests
  </notes>
  <contents>
   <dir name="/">
@@ -43,6 +44,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="001.phpt" role="test" />
     <file name="002-set-get.phpt" role="test" />
     <file name="003-set-get-link.phpt" role="test" />
+    <file name="004-create-replace.phpt" role="test" />
    </dir> <!-- //tests -->
    <file name="config.m4" role="src" />
    <file name="CREDITS" role="doc" />
