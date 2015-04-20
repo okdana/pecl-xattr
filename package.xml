@@ -6,7 +6,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <name>xattr</name>
  <channel>pecl.php.net</channel>
  <summary>Extended attributes.</summary>
- <description>This package allows to manipulate extended attributes on filesystems that support them. Requires libattr from Linux XFS project.
+ <description>This package allows to manipulate extended attributes on filesystems that support them.
  </description>
  <lead>
   <name>Remi Collet</name>
@@ -42,6 +42,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
    <dir name="tests">
     <file name="001.phpt" role="test" />
     <file name="002-set-get.phpt" role="test" />
+    <file name="003-set-get-link.phpt" role="test" />
    </dir> <!-- //tests -->
    <file name="config.m4" role="src" />
    <file name="CREDITS" role="doc" />
