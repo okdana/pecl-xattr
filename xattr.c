@@ -138,7 +138,7 @@ PHP_MINFO_FUNCTION(xattr)
 }
 /* }}} */
 
-#define check_prefix(flags) add_prefix(NULL, flags TSRMLS_DC)
+#define check_prefix(flags) add_prefix(NULL, flags TSRMLS_CC)
 
 static char *add_prefix(char *name, zend_long flags TSRMLS_DC) {
 	char *ret;
