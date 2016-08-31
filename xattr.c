@@ -141,6 +141,10 @@ PHP_MINFO_FUNCTION(xattr)
 #define check_prefix(flags) add_prefix(NULL, flags TSRMLS_CC)
 
 static char *add_prefix(char *name, zend_long flags TSRMLS_DC) {
+#ifdef __APPLE__
+	return name;
+#endif
+
 	char *ret;
 
 	if ((flags & XATTR_MASK) > 0 &&
@@ -177,6 +181,106 @@ static char *add_prefix(char *name, zend_long flags TSRMLS_DC) {
 	return ret;
 }
 
+int compat_setxattr(
+	const char *path,
+	const char *name,
+	const void *value,
+	size_t size,
+	int flags
+) {
+#ifdef __APPLE__
+	return setxattr(path, name, value, size, 0, flags);
+#else
+	return setxattr(path, name, value, size, flags);
+#endif
+}
+
+int compat_lsetxattr(
+	const char *path,
+	const char *name,
+	const void *value,
+	size_t size,
+	int flags
+) {
+#ifdef __APPLE__
+	return setxattr(path, name, value, size, 0, flags | XATTR_NOFOLLOW);
+#else
+	return lsetxattr(path, name, value, size, flags);
+#endif
+}
+
+ssize_t compat_getxattr(
+	const char *path,
+	const char *name,
+	const void *value,
+	size_t size
+) {
+#ifdef __APPLE__
+	return getxattr(path, name, value, size, 0, 0);
+#else
+	return getxattr(path, name, value, size);
+#endif
+}
+
+ssize_t compat_lgetxattr(
+	const char *path,
+	const char *name,
+	const void *value,
+	size_t size
+) {
+#ifdef __APPLE__
+	return getxattr(path, name, value, size, 0, XATTR_NOFOLLOW);
+#else
+	return getxattr(path, name, value, size);
+#endif
+}
+
+int compat_removexattr(
+	const char *path,
+	const char *name
+) {
+#ifdef __APPLE__
+	return removexattr(path, name, 0);
+#else
+	return removexattr(path, name);
+#endif
+}
+
+int compat_lremovexattr(
+	const char *path,
+	const char *name
+) {
+#ifdef __APPLE__
+	return removexattr(path, name, XATTR_NOFOLLOW);
+#else
+	return lremovexattr(path, name);
+#endif
+}
+
+ssize_t compat_listxattr(
+	const char *path,
+	char *list,
+	size_t size
+) {
+#ifdef __APPLE__
+	return listxattr(path, list, size, 0);
+#else
+	return listxattr(path, list, size);
+#endif
+}
+
+ssize_t compat_llistxattr(
+	const char *path,
+	char *list,
+	size_t size
+) {
+#ifdef __APPLE__
+	return listxattr(path, list, size, XATTR_NOFOLLOW);
+#else
+	return llistxattr(path, list, size);
+#endif
+}
+
 /* {{{ proto bool xattr_set(string path, string name, string value [, int flags])
    Set an extended attribute of file */
 PHP_FUNCTION(xattr_set)
@@ -202,12 +306,26 @@ PHP_FUNCTION(xattr_set)
 	}
 
 	prefixed_name = add_prefix(attr_name, flags TSRMLS_CC);
+
 	/* Attempt to set an attribute, warn if failed. */
 	if (flags & XATTR_DONTFOLLOW) {
-		error = lsetxattr(path, prefixed_name, attr_value, (int)value_len, (int)(flags & (XATTR_CREATE | XATTR_REPLACE)));
+		error = compat_lsetxattr(
+			path,
+			prefixed_name,
+			attr_value,
+			(int)value_len,
+			(int)(flags & (XATTR_CREATE | XATTR_REPLACE))
+		);
 	} else {
-		error = setxattr(path, prefixed_name, attr_value, (int)value_len, (int)(flags & (XATTR_CREATE | XATTR_REPLACE)));
+		error = compat_setxattr(
+			path,
+			prefixed_name,
+			attr_value,
+			(int)value_len,
+			(int)(flags & (XATTR_CREATE | XATTR_REPLACE))
+		);
 	}
+
 	if (error == -1) {
 		switch (errno) {
 			case E2BIG:
@@ -269,21 +387,22 @@ PHP_FUNCTION(xattr_get)
 	prefixed_name = add_prefix(attr_name, flags TSRMLS_CC);
 
 	/*
-	 * If buffer is too small then attr_get sets errno to E2BIG and tells us
-	 * how many bytes are required by setting buffer_size variable.
+	 * If we pass NULL/0 for the value/size, getxattr() will tell us how big our
+	 * buffer needs to be.
 	 */
 	if (flags & XATTR_DONTFOLLOW) {
-		buffer_size = lgetxattr(path, prefixed_name, attr_value, 0);
+		buffer_size = compat_lgetxattr(path, prefixed_name, NULL, 0);
 	} else {
-		buffer_size = getxattr(path, prefixed_name, attr_value, 0);
+		buffer_size = compat_getxattr(path, prefixed_name, NULL, 0);
 	}
+
 	if (buffer_size != (size_t)-1) {
 		attr_value = emalloc(buffer_size+1);
 
 		if (flags & XATTR_DONTFOLLOW) {
-			buffer_size = lgetxattr(path, prefixed_name, attr_value, buffer_size);
+			buffer_size = compat_lgetxattr(path, prefixed_name, attr_value, buffer_size);
 		} else {
-			buffer_size = getxattr(path, prefixed_name, attr_value, buffer_size);
+			buffer_size = compat_getxattr(path, prefixed_name, attr_value, buffer_size);
 		}
 		attr_value[buffer_size] = 0;
 	}
@@ -344,9 +463,9 @@ PHP_FUNCTION(xattr_supported)
 
 	/* Is "user.test.is.supported" a good name? */
 	if (flags & XATTR_DONTFOLLOW) {
-		error = lgetxattr(path, "user.test.is.supported", buffer, 0);
+		error = compat_lgetxattr(path, "user.test.is.supported", buffer, 0);
 	} else {
-		error = getxattr(path, "user.test.is.supported", buffer, 0);
+		error = compat_getxattr(path, "user.test.is.supported", buffer, 0);
 	}
 
 	if (error >= 0) {
@@ -398,9 +517,9 @@ PHP_FUNCTION(xattr_remove)
 
 	/* Attempt to remove an attribute, warn if failed. */
 	if (flags & XATTR_DONTFOLLOW) {
-		error = lremovexattr(path, prefixed_name);
+		error = compat_lremovexattr(path, prefixed_name);
 	} else {
-		error = removexattr(path, prefixed_name);
+		error = compat_removexattr(path, prefixed_name);
 	}
 	if (prefixed_name != attr_name) {
 		efree(prefixed_name);
@@ -467,9 +586,9 @@ PHP_FUNCTION(xattr_list)
 		 * required size of our buffer in return (or an error).
 		 */
 		if (flags & XATTR_DONTFOLLOW) {
-			error = llistxattr(path, buffer, 0);
+			error = compat_llistxattr(path, NULL, 0);
 		} else {
-			error = listxattr(path, buffer, 0);
+			error = compat_listxattr(path, NULL, 0);
 		}
 
 		/* Print warning on common errors */
@@ -496,9 +615,9 @@ PHP_FUNCTION(xattr_list)
 		buffer = erealloc(buffer, buffer_size);
 
 		if (flags & XATTR_DONTFOLLOW) {
-			error = llistxattr(path, buffer, buffer_size);
+			error = compat_llistxattr(path, buffer, buffer_size);
 		} else {
-			error = listxattr(path, buffer, buffer_size);
+			error = compat_listxattr(path, buffer, buffer_size);
 		}
 
 		/*
@@ -519,6 +638,11 @@ PHP_FUNCTION(xattr_list)
 
 	array_init(return_value);
 	p = buffer;
+
+	/* Darwin doesn't have namespaces, so always act like XATTR_ALL. */
+#ifdef __APPLE__
+	flags |= XATTR_ALL;
+#endif
 
 	/*
 	 * Root namespace has the prefix "trusted." and users namespace "user.".
